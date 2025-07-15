@@ -1,104 +1,113 @@
+
 <!DOCTYPE html>
 <html>
 <head>
-  <meta charset="UTF-8" />
-  <title>Student Calendar Login</title>
-  <link href="https://cdn.jsdelivr.net/npm/fullcalendar@6.1.8/index.global.min.css" rel="stylesheet">
+  <meta charset="UTF-8">
+  <title>My Class Calendar</title>
+  <link href='https://cdn.jsdelivr.net/npm/fullcalendar@5.11.3/main.min.css' rel='stylesheet' />
+  <script src='https://cdn.jsdelivr.net/npm/fullcalendar@5.11.3/main.min.js'></script>
+  <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-app-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-auth-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-firestore-compat.js"></script>
   <style>
-    body { font-family: Arial, sans-serif; background: #f0f8ff; padding: 20px; }
-    #calendar { max-width: 900px; margin: 40px auto; background: white; padding: 10px; border-radius: 10px; }
-    .auth { text-align: center; margin-top: 20px; }
+    body { font-family: Arial; background: #f0f0f0; margin: 0; padding: 0; }
+    #login-container { display: flex; flex-direction: column; align-items: center; margin-top: 100px; }
+    #calendar-container { display: none; padding: 20px; }
+    #logout-btn { position: absolute; top: 10px; right: 10px; }
+    input { margin: 5px; padding: 8px; width: 200px; }
     button { margin: 5px; padding: 8px 12px; }
   </style>
 </head>
 <body>
-  <h2 align="center">📅 My Class Calendar</h2>
-  <div class="auth">
-    <input type="email" id="email" placeholder="Email" />
-    <input type="password" id="password" placeholder="Password" />
-    <button onclick="register()">Register</button>
-    <button onclick="login()">Login</button>
-    <button onclick="logout()">Logout</button>
-    <p id="user-info"></p>
-  </div>
-  <div id="calendar"></div>
 
-  <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-app-compat.js"></script>
-  <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-auth-compat.js"></script>
-  <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore-compat.js"></script>
-  <script src="https://cdn.jsdelivr.net/npm/fullcalendar@6.1.8/index.global.min.js"></script>
-  <script>
-    const firebaseConfig = {
-      apiKey: "AIzaSyB0W6A33XlgRsT9AfBfnMqARbkK0yoJqzs",
-      authDomain: "myclasscalendar-3ffb9.firebaseapp.com",
-      projectId: "myclasscalendar-3ffb9",
-      storageBucket: "myclasscalendar-3ffb9.appspot.com",
-      messagingSenderId: "211711795991",
-      appId: "1:211711795991:web:770a5785783b84ce778d52",
-      measurementId: "G-N3LBS98RHE"
-    };
-    firebase.initializeApp(firebaseConfig);
-    const auth = firebase.auth();
-    const db = firebase.firestore();
+<div id="login-container">
+  <h2>Login</h2>
+  <input type="email" id="email" placeholder="Email">
+  <input type="password" id="password" placeholder="Password">
+  <button onclick="login()">Login</button>
+  <button onclick="register()">Register</button>
+</div>
 
-    let calendar;
+<div id="calendar-container">
+  <button id="logout-btn" onclick="logout()">Logout</button>
+  <div id='calendar'></div>
+</div>
 
-    auth.onAuthStateChanged(user => {
-      if (user) {
-        document.getElementById("user-info").innerText = "Logged in as: " + user.email;
-        loadCalendar(user.uid);
-      } else {
-        document.getElementById("user-info").innerText = "Not logged in.";
-        if (calendar) calendar.destroy();
-      }
-    });
+<script>
+  const firebaseConfig = {
+    apiKey: "AIzaSyB0W6A33XlgRsT9AfBfnMqARbkK0yoJqzs",
+    authDomain: "myclasscalendar-3ffb9.firebaseapp.com",
+    projectId: "myclasscalendar-3ffb9",
+    storageBucket: "myclasscalendar-3ffb9.appspot.com",
+    messagingSenderId: "211711795991",
+    appId: "1:211711795991:web:770a5785783b84ce778d52",
+    measurementId: "G-N3LBS98RHE"
+  };
+  firebase.initializeApp(firebaseConfig);
+  const auth = firebase.auth();
+  const db = firebase.firestore();
 
-    function register() {
-      const email = document.getElementById("email").value;
-      const pass = document.getElementById("password").value;
-      auth.createUserWithEmailAndPassword(email, pass).catch(e => alert(e.message));
-    }
+  function login() {
+    const email = document.getElementById("email").value;
+    const password = document.getElementById("password").value;
+    auth.signInWithEmailAndPassword(email, password)
+      .then(() => console.log("Logged in"))
+      .catch(err => alert(err.message));
+  }
 
-    function login() {
-      const email = document.getElementById("email").value;
-      const pass = document.getElementById("password").value;
-      auth.signInWithEmailAndPassword(email, pass).catch(e => alert(e.message));
-    }
+  function register() {
+    const email = document.getElementById("email").value;
+    const password = document.getElementById("password").value;
+    auth.createUserWithEmailAndPassword(email, password)
+      .then(() => console.log("Registered"))
+      .catch(err => alert(err.message));
+  }
 
-    function logout() {
-      auth.signOut();
-    }
+  function logout() {
+    auth.signOut();
+  }
 
-    async function loadCalendar(uid) {
-      const events = [];
-      const snapshot = await db.collection("users").doc(uid).collection("events").get();
-      snapshot.forEach(doc => {
-        events.push({ id: doc.id, ...doc.data() });
-      });
+  auth.onAuthStateChanged(user => {
+    const loginContainer = document.getElementById("login-container");
+    const calendarContainer = document.getElementById("calendar-container");
+    if (user) {
+      loginContainer.style.display = "none";
+      calendarContainer.style.display = "block";
 
       const calendarEl = document.getElementById('calendar');
-      calendar = new FullCalendar.Calendar(calendarEl, {
+      const calendar = new FullCalendar.Calendar(calendarEl, {
         initialView: 'dayGridMonth',
         editable: true,
         selectable: true,
-        dateClick: async function(info) {
+        events: async function(fetchInfo, successCallback) {
+          const snapshot = await db.collection("events").where("userId", "==", user.uid).get();
+          const events = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+          successCallback(events);
+        },
+        dateClick: function(info) {
           const title = prompt("Enter event title:");
           if (title) {
-            const event = { title, start: info.dateStr, allDay: true };
-            const docRef = await db.collection("users").doc(uid).collection("events").add(event);
-            calendar.addEvent({ ...event, id: docRef.id });
+            db.collection("events").add({
+              title: title,
+              start: info.dateStr,
+              userId: user.uid
+            });
           }
         },
-        eventClick: async function(info) {
+        eventClick: function(info) {
           if (confirm("Delete this event?")) {
-            await db.collection("users").doc(uid).collection("events").doc(info.event.id).delete();
+            db.collection("events").doc(info.event.id).delete();
             info.event.remove();
           }
-        },
-        events: events
+        }
       });
       calendar.render();
+    } else {
+      loginContainer.style.display = "flex";
+      calendarContainer.style.display = "none";
     }
-  </script>
+  });
+</script>
+
 </body>
 </html>
