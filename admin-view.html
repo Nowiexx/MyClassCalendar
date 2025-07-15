@@ -43,7 +43,7 @@
     let calendar;
 
     auth.onAuthStateChanged(async user => {
-      if (user && user.email === "noelbellotindos0@gmail.com") {
+      if (user && user.email === "weldos13@gmail.com") {
         document.getElementById("user-info").innerText = "Admin: " + user.email;
         const events = [];
         const usersSnapshot = await db.collection("users").get();
