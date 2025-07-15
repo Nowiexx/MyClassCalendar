@@ -1,0 +1,104 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="UTF-8" />
+  <title>Student Calendar Login</title>
+  <link href="https://cdn.jsdelivr.net/npm/fullcalendar@6.1.8/index.global.min.css" rel="stylesheet">
+  <style>
+    body { font-family: Arial, sans-serif; background: #f0f8ff; padding: 20px; }
+    #calendar { max-width: 900px; margin: 40px auto; background: white; padding: 10px; border-radius: 10px; }
+    .auth { text-align: center; margin-top: 20px; }
+    button { margin: 5px; padding: 8px 12px; }
+  </style>
+</head>
+<body>
+  <h2 align="center">📅 My Class Calendar</h2>
+  <div class="auth">
+    <input type="email" id="email" placeholder="Email" />
+    <input type="password" id="password" placeholder="Password" />
+    <button onclick="register()">Register</button>
+    <button onclick="login()">Login</button>
+    <button onclick="logout()">Logout</button>
+    <p id="user-info"></p>
+  </div>
+  <div id="calendar"></div>
+
+  <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-app-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-auth-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore-compat.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/fullcalendar@6.1.8/index.global.min.js"></script>
+  <script>
+    const firebaseConfig = {
+      apiKey: "AIzaSyB0W6A33XlgRsT9AfBfnMqARbkK0yoJqzs",
+      authDomain: "myclasscalendar-3ffb9.firebaseapp.com",
+      projectId: "myclasscalendar-3ffb9",
+      storageBucket: "myclasscalendar-3ffb9.appspot.com",
+      messagingSenderId: "211711795991",
+      appId: "1:211711795991:web:770a5785783b84ce778d52",
+      measurementId: "G-N3LBS98RHE"
+    };
+    firebase.initializeApp(firebaseConfig);
+    const auth = firebase.auth();
+    const db = firebase.firestore();
+
+    let calendar;
+
+    auth.onAuthStateChanged(user => {
+      if (user) {
+        document.getElementById("user-info").innerText = "Logged in as: " + user.email;
+        loadCalendar(user.uid);
+      } else {
+        document.getElementById("user-info").innerText = "Not logged in.";
+        if (calendar) calendar.destroy();
+      }
+    });
+
+    function register() {
+      const email = document.getElementById("email").value;
+      const pass = document.getElementById("password").value;
+      auth.createUserWithEmailAndPassword(email, pass).catch(e => alert(e.message));
+    }
+
+    function login() {
+      const email = document.getElementById("email").value;
+      const pass = document.getElementById("password").value;
+      auth.signInWithEmailAndPassword(email, pass).catch(e => alert(e.message));
+    }
+
+    function logout() {
+      auth.signOut();
+    }
+
+    async function loadCalendar(uid) {
+      const events = [];
+      const snapshot = await db.collection("users").doc(uid).collection("events").get();
+      snapshot.forEach(doc => {
+        events.push({ id: doc.id, ...doc.data() });
+      });
+
+      const calendarEl = document.getElementById('calendar');
+      calendar = new FullCalendar.Calendar(calendarEl, {
+        initialView: 'dayGridMonth',
+        editable: true,
+        selectable: true,
+        dateClick: async function(info) {
+          const title = prompt("Enter event title:");
+          if (title) {
+            const event = { title, start: info.dateStr, allDay: true };
+            const docRef = await db.collection("users").doc(uid).collection("events").add(event);
+            calendar.addEvent({ ...event, id: docRef.id });
+          }
+        },
+        eventClick: async function(info) {
+          if (confirm("Delete this event?")) {
+            await db.collection("users").doc(uid).collection("events").doc(info.event.id).delete();
+            info.event.remove();
+          }
+        },
+        events: events
+      });
+      calendar.render();
+    }
+  </script>
+</body>
+</html>
