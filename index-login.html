@@ -1,11 +1,12 @@
+<!DOCTYPE html>
 <html>
 <head>
   <meta charset="UTF-8">
   <title>My Class Calendar</title>
-  <link href='https://cdn.jsdelivr.net/npm/fullcalendar@5.11.3/main.min.css' rel='stylesheet' />
-  <script src='https://cdn.jsdelivr.net/npm/fullcalendar@5.11.3/main.min.js'></script>
+  <link href="https://cdn.jsdelivr.net/npm/fullcalendar@5.11.3/main.min.css" rel="stylesheet" />
+  <script src="https://cdn.jsdelivr.net/npm/fullcalendar@5.11.3/main.min.js"></script>
 
-  
+  <!-- Firebase SDKs -->
   <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-app-compat.js"></script>
   <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-auth-compat.js"></script>
   <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-firestore-compat.js"></script>
@@ -32,11 +33,10 @@
 
 <div id="calendar-container">
   <button id="logout-btn" onclick="logout()">Logout</button>
-  <div id='calendar'></div>
+  <div id="calendar"></div>
 </div>
 
 <script>
-  
   const firebaseConfig = {
     apiKey: "AIzaSyB0W6A33XlgRsT9AfBfnMqARbkK0yoJqzs",
     authDomain: "myclasscalendar-3ffb9.firebaseapp.com",
@@ -52,29 +52,26 @@
   const db = firebase.firestore();
   const messaging = firebase.messaging();
 
-  
- if ('serviceWorker' in navigator) {
-  console.log('🛠 Trying to register service worker...');
-  navigator.serviceWorker.register('firebase-messaging-sw.js')
-    .then(function(registration) {
-      console.log('✅ Service Worker registered:', registration);
+  let calendar; // store calendar instance globally
 
-        
+  if ('serviceWorker' in navigator) {
+    navigator.serviceWorker.register('firebase-messaging-sw.js')
+      .then(function(registration) {
+        console.log('✅ Service Worker registered');
         messaging.getToken({
           vapidKey: 'BMG5C4RyH-DniqtFQ3bC0P0MLhph8-gUdXeeJshjYem5AJsetYMmRPDUodCMrzeetgUmVZWdrqwhwsZfURyTxFA',
-
           serviceWorkerRegistration: registration
         }).then((currentToken) => {
           if (currentToken) {
             console.log('📬 Notification Token:', currentToken);
-            
           } else {
             console.warn('⚠️ No registration token available.');
           }
         }).catch((err) => {
           console.error('❌ Error getting token:', err);
         });
-      }).catch(function(err) {
+      })
+      .catch(function(err) {
         console.error('❌ Service Worker registration failed:', err);
       });
   }
@@ -83,7 +80,6 @@
     const email = document.getElementById("email").value;
     const password = document.getElementById("password").value;
     auth.signInWithEmailAndPassword(email, password)
-      .then(() => console.log("Logged in"))
       .catch(err => alert(err.message));
   }
 
@@ -91,7 +87,6 @@
     const email = document.getElementById("email").value;
     const password = document.getElementById("password").value;
     auth.createUserWithEmailAndPassword(email, password)
-      .then(() => console.log("Registered"))
       .catch(err => alert(err.message));
   }
 
@@ -107,14 +102,24 @@
       calendarContainer.style.display = "block";
 
       const calendarEl = document.getElementById('calendar');
-      const calendar = new FullCalendar.Calendar(calendarEl, {
+      calendarEl.innerHTML = ""; // clear calendar DOM
+
+      calendar = new FullCalendar.Calendar(calendarEl, {
         initialView: 'dayGridMonth',
         editable: true,
         selectable: true,
-        events: async function(fetchInfo, successCallback) {
-          const snapshot = await db.collection("events").where("userId", "==", user.uid).get();
-          const events = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
-          successCallback(events);
+        events: async function(fetchInfo, successCallback, failureCallback) {
+          try {
+            const snapshot = await db.collection("events").where("userId", "==", user.uid).get();
+            const events = snapshot.docs.map(doc => ({
+              id: doc.id,
+              ...doc.data()
+            }));
+            successCallback(events);
+          } catch (err) {
+            console.error("❌ Error fetching events:", err);
+            failureCallback(err);
+          }
         },
         dateClick: function(info) {
           const title = prompt("Enter event title:");
@@ -123,13 +128,17 @@
               title: title,
               start: info.dateStr,
               userId: user.uid
+            }).then(() => {
+              calendar.refetchEvents(); // refresh events
             });
           }
         },
         eventClick: function(info) {
           if (confirm("Delete this event?")) {
-            db.collection("events").doc(info.event.id).delete();
-            info.event.remove();
+            db.collection("events").doc(info.event.id).delete()
+              .then(() => {
+                info.event.remove();
+              });
           }
         }
       });
@@ -137,10 +146,13 @@
     } else {
       loginContainer.style.display = "flex";
       calendarContainer.style.display = "none";
+      if (calendar) {
+        calendar.destroy(); // clean up old instance
+        calendar = null;
+      }
     }
   });
 </script>
 
 </body>
 </html>
-
