@@ -1,0 +1,128 @@
+
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="UTF-8">
+  <title>My Class Calendar</title>
+  <link href='https://cdn.jsdelivr.net/npm/fullcalendar@5.11.3/main.min.css' rel='stylesheet' />
+  <script src='https://cdn.jsdelivr.net/npm/fullcalendar@5.11.3/main.min.js'></script>
+  <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-app-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-auth-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-firestore-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-messaging-compat.js"></script>
+  <link rel="manifest" href="manifest.json">
+  <style>
+    body { font-family: Arial; background: #f5f7fa; margin: 0; padding: 0; }
+    #login-container { display: flex; flex-direction: column; align-items: center; margin-top: 100px; }
+    #calendar-container { display: none; padding: 20px; }
+    #logout-btn { position: absolute; top: 10px; right: 10px; }
+    input, button { margin: 5px; padding: 10px; width: 200px; }
+    button { cursor: pointer; background-color: #6200ea; color: white; border: none; border-radius: 5px; }
+    button:hover { background-color: #3700b3; }
+  </style>
+</head>
+<body>
+
+<div id="login-container">
+  <h2>Login</h2>
+  <input type="email" id="email" placeholder="Email">
+  <input type="password" id="password" placeholder="Password">
+  <button onclick="login()">Login</button>
+  <button onclick="register()">Register</button>
+</div>
+
+<div id="calendar-container">
+  <button id="logout-btn" onclick="logout()">Logout</button>
+  <div id="calendar"></div>
+</div>
+
+<script>
+  const firebaseConfig = {
+    apiKey: "AIzaSyB0W6A33XlgRsT9AfBfnMqARbkK0yoJqzs",
+    authDomain: "myclasscalendar-3ffb9.firebaseapp.com",
+    projectId: "myclasscalendar-3ffb9",
+    messagingSenderId: "211711795991",
+    appId: "1:211711795991:web:770a5785783b84ce778d52"
+  };
+  firebase.initializeApp(firebaseConfig);
+  const auth = firebase.auth();
+  const db = firebase.firestore();
+  const messaging = firebase.messaging();
+
+  function login() {
+    const email = document.getElementById("email").value;
+    const password = document.getElementById("password").value;
+    auth.signInWithEmailAndPassword(email, password)
+      .catch(err => alert(err.message));
+  }
+
+  function register() {
+    const email = document.getElementById("email").value;
+    const password = document.getElementById("password").value;
+    auth.createUserWithEmailAndPassword(email, password)
+      .catch(err => alert(err.message));
+  }
+
+  function logout() {
+    auth.signOut();
+  }
+
+  auth.onAuthStateChanged(user => {
+    const loginContainer = document.getElementById("login-container");
+    const calendarContainer = document.getElementById("calendar-container");
+    if (user) {
+      loginContainer.style.display = "none";
+      calendarContainer.style.display = "block";
+
+      const calendarEl = document.getElementById('calendar');
+      const calendar = new FullCalendar.Calendar(calendarEl, {
+        initialView: 'dayGridMonth',
+        editable: true,
+        selectable: true,
+        events: async function(fetchInfo, successCallback) {
+          const snapshot = await db.collection("events").where("userId", "==", user.uid).get();
+          const events = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+          successCallback(events);
+        },
+        dateClick: function(info) {
+          const title = prompt("Enter event title:");
+          if (title) {
+            db.collection("events").add({
+              title: title,
+              start: info.dateStr,
+              userId: user.uid
+            });
+          }
+        },
+        eventClick: function(info) {
+          if (confirm("Delete this event?")) {
+            db.collection("events").doc(info.event.id).delete();
+            info.event.remove();
+          }
+        }
+      });
+      calendar.render();
+
+      Notification.requestPermission().then(permission => {
+        if (permission === "granted") {
+          messaging.getToken({ vapidKey: "BPU0daKLyFeFZB8n-DUMMY-DUMMY-DUMMY-DUMMY" }).then(token => {
+            console.log("Notification Token:", token);
+          });
+        }
+      });
+
+      messaging.onMessage(payload => {
+        new Notification(payload.notification.title, {
+          body: payload.notification.body,
+          icon: '/icon.png'
+        });
+      });
+    } else {
+      loginContainer.style.display = "flex";
+      calendarContainer.style.display = "none";
+    }
+  });
+</script>
+
+</body>
+</html>
