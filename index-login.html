@@ -54,10 +54,12 @@
   const messaging = firebase.messaging();
 
   // ✅ Register Service Worker for Notifications
-  if ('serviceWorker' in navigator) {
-    navigator.serviceWorker.register('firebase-messaging-sw.js')
-      .then(function(registration) {
-        console.log('✅ Service Worker registered:', registration);
+ if ('serviceWorker' in navigator) {
+  console.log('🛠 Trying to register service worker...');
+  navigator.serviceWorker.register('firebase-messaging-sw.js')
+    .then(function(registration) {
+      console.log('✅ Service Worker registered:', registration);
+
         // ✅ Get token after service worker is ready
         messaging.getToken({
           vapidKey: 'BMG5C4RyH-DniqtFQ3bC0P0MLhph8-gUdXeeJshjYem5AJsetYMmRPDUodCMrzeetgUmVZWdrqwhwsZfURyTxFA',
